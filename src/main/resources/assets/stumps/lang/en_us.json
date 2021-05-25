@@ -1,0 +1,15 @@
+{
+  "category.stumps": "stumps Interface",
+  "key.stumps.showstumpsInterface": "Show stumps Interface",
+  "stumps.equip": "Equip",
+  "stumps.items": "Items",
+  "stumps.blocks": "Blocks",
+  "stumps.logout": "Logout",
+  "stumps.armor": "Armor",
+  "stumps.weapons": "Weapons",
+  "stumps.head": "Head",
+  "stumps.chest": "Chest",
+  "stumps.legs": "Legs",
+  "stumps.feet": "Feet",
+  "stumps.empty": "Empty"
+}
