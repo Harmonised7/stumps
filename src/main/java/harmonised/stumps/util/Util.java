@@ -5,8 +5,11 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.EquipmentSlotType;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.world.World;
+
+import java.util.UUID;
 
 public class Util
 {
@@ -37,5 +40,13 @@ public class Util
         {
             return null;
         }
+    }
+
+    public static CompoundNBT writeUniqueId(UUID uuid )
+    {
+        CompoundNBT compoundnbt = new CompoundNBT();
+        compoundnbt.putLong("M", uuid.getMostSignificantBits());
+        compoundnbt.putLong("L", uuid.getLeastSignificantBits());
+        return compoundnbt;
     }
 }
