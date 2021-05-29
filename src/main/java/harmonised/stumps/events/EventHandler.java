@@ -7,6 +7,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
+import net.minecraft.item.PickaxeItem;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -27,6 +28,7 @@ public class EventHandler
     public static final ResourceLocation leavesTag = new ResourceLocation( "minecraft:leaves" );
     public static final ResourceLocation dirtTag = new ResourceLocation( "forge:dirt" );
     public static final ResourceLocation sandTag = new ResourceLocation( "forge:sand" );
+    public static final ResourceLocation bambooGrowableTag = new ResourceLocation( "minecraft:bamboo_plantable_on" );
 
     @SubscribeEvent
     public static void breakSpeedEvent( BlockEvent.BreakEvent event )
@@ -35,7 +37,7 @@ public class EventHandler
         BlockPos pos = event.getPos();
         if( !( event.getPlayer() instanceof FakePlayer ) )
         {
-            if( !ChunkDataHandler.checkPos( world, pos ) && !event.getPlayer().getMainHandItem().getItem().equals( Items.DIAMOND_PICKAXE ) && isLog( world, pos ) )
+            if( !ChunkDataHandler.checkPos( world, pos ) && !isToolSufficient( event.getPlayer().getMainHandItem().getItem() ) && isLog( world, pos ) )
             {
                 detectStumps( world, pos );
                 if( ChunkDataHandler.checkPos( world, pos ) )
@@ -62,7 +64,7 @@ public class EventHandler
 
         if( ChunkDataHandler.checkPos( world, pos ) )
         {
-            if( !mainHandItem.equals(Items.DIAMOND_PICKAXE ) )
+            if( !isToolSufficient( mainHandItem ) )
             {
                 event.setNewSpeed(0);
                 event.setCanceled( true );
@@ -74,6 +76,17 @@ public class EventHandler
     public static void growTreeEvent( SaplingGrowTreeEvent event )
     {
         detectStumps( (World) event.getWorld(), event.getPos() );
+    }
+
+    public static boolean isToolSufficient( Item tool )
+    {
+        return tool instanceof PickaxeItem && ((PickaxeItem) tool).getTier().getLevel() > 2;
+    }
+
+    public static boolean isSoilBlock( Block block )
+    {
+        Set<ResourceLocation> tags = block.getTags();
+        return tags.contains( dirtTag ) || tags.contains( sandTag ) || tags.contains( bambooGrowableTag );
     }
 
     public static void detectStumps(World world, BlockPos pos )
@@ -95,13 +108,12 @@ public class EventHandler
                     {
                         y++;
                     };
-                    if( world.getBlockState( thisPos.below( y+1 ) ).canOcclude() )
+                    if( isSoilBlock( world.getBlockState( thisPos.below( y+1 ) ).getBlock() ) )
                         stumpBlocks.add( thisPos.below(y) );
                 }
                 else if( !thisBlock.equals( block ) )
                 {
-                    Set<ResourceLocation> tags = thisBlock.getTags();
-                    if( thisState.canOcclude() && !tags.contains( dirtTag ) && !tags.contains( sandTag ) )
+                    if( thisState.canOcclude() && !isSoilBlock( thisBlock ) )
                         return;
                 }
             }
