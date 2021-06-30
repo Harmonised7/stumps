@@ -13,11 +13,11 @@ import java.util.*;
 
 public class ChunkDataHandler
 {
-    private static Map<ResourceLocation, Map<ChunkPos, Set<BlockPos>>> placedMap = new HashMap<>();
+    private static Map<String, Map<ResourceLocation, Map<ChunkPos, Set<BlockPos>>>> chunkDataMap = new HashMap<>();
 
     public static void init()
     {
-        placedMap = new HashMap<>();
+        chunkDataMap = new HashMap<>();
     }
 
     public static void handleChunkDataLoad( ChunkDataEvent.Load event )
@@ -26,30 +26,33 @@ public class ChunkDataHandler
         if( chunkNBT != null )
         {
             CompoundNBT levelNBT = chunkNBT.getCompound( "Level" );
-            if( levelNBT.contains( "placedPos" ) )
+            for( Map.Entry<String, Map<ResourceLocation, Map<ChunkPos, Set<BlockPos>>>> dataEntry : chunkDataMap.entrySet() )
             {
-                World world = (World) event.getWorld();
-                ResourceLocation dimResLoc = Util.getDimensionResLoc( world );
-                ChunkPos chunkPos = event.getChunk().getPos();
-
-                if( !placedMap.containsKey( dimResLoc ) )
-                    placedMap.put( dimResLoc, new HashMap<>() );
-
-                CompoundNBT placedPosNBT = ( (CompoundNBT) levelNBT.get( "placedPos" ) );
-                if( placedPosNBT == null )
-                    return;
-                Map<ChunkPos, Set<BlockPos>> chunkMap = placedMap.get( dimResLoc );
-                Set<BlockPos> blockMap = new HashSet<>();
-                Set<String> keySet = placedPosNBT.getAllKeys();
-
-                keySet.forEach( key ->
+                if( levelNBT.contains( dataEntry.getKey() ) )
                 {
-                    CompoundNBT entry = placedPosNBT.getCompound( key );
-                    blockMap.add( NBTUtil.readBlockPos( entry.getCompound( "pos" ) ) );
-                });
+                    World world = (World) event.getWorld();
+                    ResourceLocation dimResLoc = Util.getDimensionResLoc( world );
+                    ChunkPos chunkPos = event.getChunk().getPos();
 
-                chunkMap.remove( chunkPos );
-                chunkMap.put( chunkPos, blockMap );
+                    if( !dataEntry.getValue().containsKey( dimResLoc ) )
+                        dataEntry.getValue().put( dimResLoc, new HashMap<>() );
+
+                    CompoundNBT placedPosNBT = ( (CompoundNBT) levelNBT.get( dataEntry.getKey() ) );
+                    if( placedPosNBT == null )
+                        return;
+                    Map<ChunkPos, Set<BlockPos>> chunkMap = dataEntry.getValue().get( dimResLoc );
+                    Set<BlockPos> blockMap = new HashSet<>();
+                    Set<String> keySet = placedPosNBT.getAllKeys();
+
+                    keySet.forEach( key ->
+                    {
+                        CompoundNBT entry = placedPosNBT.getCompound( key );
+                        blockMap.add( NBTUtil.readBlockPos( entry.getCompound( "pos" ) ) );
+                    });
+
+                    chunkMap.remove( chunkPos );
+                    chunkMap.put( chunkPos, blockMap );
+                }
             }
         }
     }
@@ -58,40 +61,45 @@ public class ChunkDataHandler
     {
         World world = (World) event.getWorld();
         ResourceLocation dimResLoc = Util.getDimensionResLoc( world );
-        if( placedMap.containsKey( dimResLoc ) )
+        if( chunkDataMap.containsKey( dimResLoc ) )
         {
             ChunkPos chunkPos = event.getChunk().getPos();
-            if( placedMap.get( dimResLoc ).containsKey( chunkPos ) )
+            if( chunkDataMap.get( dimResLoc ).containsKey( chunkPos ) )
             {
                 CompoundNBT levelNBT = (CompoundNBT) event.getData().get( "Level" );
                 if( levelNBT == null )
                     return;
 
-                CompoundNBT newPlacedNBT = new CompoundNBT();
-                CompoundNBT insidesNBT;
-
-                int i = 0;
-
-                for( BlockPos entry : placedMap.get( dimResLoc ).get( chunkPos ) )
+                for( Map.Entry<String, Map<ResourceLocation, Map<ChunkPos, Set<BlockPos>>>> dataEntry : chunkDataMap.entrySet() )
                 {
-                    insidesNBT = new CompoundNBT();
-                    insidesNBT.put( "pos", NBTUtil.writeBlockPos( entry ) );
-                    newPlacedNBT.put( i++ + "", insidesNBT );
-                }
+                    CompoundNBT newPlacedNBT = new CompoundNBT();
+                    CompoundNBT insidesNBT;
 
-                levelNBT.put( "placedPos", newPlacedNBT );
+                    int i = 0;
+
+                    for( BlockPos entry : dataEntry.getValue().get( dimResLoc ).get( chunkPos ) )
+                    {
+                        insidesNBT = new CompoundNBT();
+                        insidesNBT.put( "pos", NBTUtil.writeBlockPos( entry ) );
+                        newPlacedNBT.put( i++ + "", insidesNBT );
+                    }
+
+                    levelNBT.put( dataEntry.getKey(), newPlacedNBT );
+                }
             }
         }
     }
 
-    public static void addPos( ResourceLocation dimResLoc, BlockPos blockPos )
+    public static void addPos( ResourceLocation dimResLoc, BlockPos blockPos, PosType posType )
     {
         ChunkPos chunkPos = new ChunkPos( blockPos );
 
-        if( !placedMap.containsKey( dimResLoc ) )
-            placedMap.put( dimResLoc, new HashMap<>() );
+        Map<ResourceLocation, Map<ChunkPos, Set<BlockPos>>> theMap = chunkDataMap.get( posType.toString() );
 
-        Map<ChunkPos, Set<BlockPos>> chunkMap = placedMap.get( dimResLoc );
+        if( !theMap.containsKey( dimResLoc ) )
+            theMap.put( dimResLoc, new HashMap<>() );
+
+        Map<ChunkPos, Set<BlockPos>> chunkMap = theMap.get( dimResLoc );
 
         if( !chunkMap.containsKey( chunkPos ) )
             chunkMap.put( chunkPos, new HashSet<>() );
@@ -101,14 +109,16 @@ public class ChunkDataHandler
         blockMap.add( blockPos );
     }
 
-    public static void delPos( ResourceLocation dimResLoc, BlockPos blockPos )
+    public static void delPos( ResourceLocation dimResLoc, BlockPos blockPos, PosType posType )
     {
         ChunkPos chunkPos = new ChunkPos( blockPos );
 
-        if( !placedMap.containsKey( dimResLoc ) )
-            placedMap.put( dimResLoc, new HashMap<>() );
+        Map<ResourceLocation, Map<ChunkPos, Set<BlockPos>>> theMap = chunkDataMap.get( posType.toString() );
 
-        Map<ChunkPos, Set<BlockPos>> chunkMap = placedMap.get( dimResLoc );
+        if( !theMap.containsKey( dimResLoc ) )
+            theMap.put( dimResLoc, new HashMap<>() );
+
+        Map<ChunkPos, Set<BlockPos>> chunkMap = theMap.get( dimResLoc );
 
         if( !chunkMap.containsKey( chunkPos ) )
             chunkMap.put( chunkPos, new HashSet<>() );
@@ -118,13 +128,34 @@ public class ChunkDataHandler
         blockMap.remove( blockPos );
     }
 
-    public static boolean checkPos( World world, BlockPos pos )
+    public static boolean checkPos( World world, BlockPos pos, PosType posType )
     {
-        return checkPos( Util.getDimensionResLoc( world ), pos );
+        return checkPos( Util.getDimensionResLoc( world ), pos, posType );
     }
 
-    public static boolean checkPos( ResourceLocation dimResLoc, BlockPos blockPos )
+    public static boolean checkPos( ResourceLocation dimResLoc, BlockPos blockPos, PosType posType )
     {
-        return placedMap.getOrDefault( dimResLoc, new HashMap<>() ).getOrDefault( new ChunkPos( blockPos ), new HashSet<>() ).contains( blockPos );
+        return chunkDataMap.get( posType.toString() ).getOrDefault( dimResLoc, new HashMap<>() ).getOrDefault( new ChunkPos( blockPos ), new HashSet<>() ).contains( blockPos );
+    }
+
+    public enum PosType
+    {
+        TREE,
+        PLACED;
+
+        static
+        {
+            for( PosType posType : values() )
+            {
+                if( !chunkDataMap.containsKey( posType.toString() ) )
+                    chunkDataMap.put( posType.toString(), new HashMap<>() );
+            }
+        }
+
+        @Override
+        public String toString()
+        {
+            return name().toLowerCase();
+        }
     }
 }

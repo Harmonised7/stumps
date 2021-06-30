@@ -31,16 +31,16 @@ public class EventHandler
     public static final ResourceLocation bambooGrowableTag = new ResourceLocation( "minecraft:bamboo_plantable_on" );
 
     @SubscribeEvent
-    public static void breakSpeedEvent( BlockEvent.BreakEvent event )
+    public static void breakEvent( BlockEvent.BreakEvent event )
     {
         World world = (World) event.getWorld();
         BlockPos pos = event.getPos();
         if( !( event.getPlayer() instanceof FakePlayer ) )
         {
-            if( !ChunkDataHandler.checkPos( world, pos ) && !isToolSufficient( event.getPlayer().getMainHandItem().getItem() ) && isLog( world, pos ) )
+            if( !ChunkDataHandler.checkPos( world, pos, ChunkDataHandler.PosType.PLACED ) && !ChunkDataHandler.checkPos( world, pos, ChunkDataHandler.PosType.TREE ) && !isToolSufficient( event.getPlayer().getMainHandItem().getItem() ) && isLog( world, pos ) )
             {
                 detectStumps( world, pos );
-                if( ChunkDataHandler.checkPos( world, pos ) )
+                if( ChunkDataHandler.checkPos( world, pos, ChunkDataHandler.PosType.TREE ) )
                 {
                     event.setCanceled( true );
                     return;
@@ -48,7 +48,8 @@ public class EventHandler
             }
         }
 
-        ChunkDataHandler.delPos( Util.getDimensionResLoc( world ), pos );
+        ChunkDataHandler.delPos( Util.getDimensionResLoc( world ), pos, ChunkDataHandler.PosType.TREE );
+        ChunkDataHandler.delPos( Util.getDimensionResLoc( world ), pos, ChunkDataHandler.PosType.PLACED );
     }
 
     @SubscribeEvent
@@ -59,10 +60,13 @@ public class EventHandler
         BlockPos pos = event.getPos();
         Item mainHandItem = player.getMainHandItem().getItem();
 
-        if( !ChunkDataHandler.checkPos( world, pos ) && isLog( world, pos ) )
+        if( ChunkDataHandler.checkPos( world, pos, ChunkDataHandler.PosType.PLACED ) )
+            return;
+
+        if( !ChunkDataHandler.checkPos( world, pos, ChunkDataHandler.PosType.TREE ) && isLog( world, pos ) )
             detectStumps( world, pos );
 
-        if( ChunkDataHandler.checkPos( world, pos ) )
+        if( ChunkDataHandler.checkPos( world, pos, ChunkDataHandler.PosType.TREE ) )
         {
             if( !isToolSufficient( mainHandItem ) )
             {
@@ -70,6 +74,12 @@ public class EventHandler
                 event.setCanceled( true );
             }
         }
+    }
+
+    @SubscribeEvent
+    public static void blockPlacedEvent( BlockEvent.EntityPlaceEvent event )
+    {
+        ChunkDataHandler.addPos( Util.getDimensionResLoc( (World) event.getWorld() ), event.getPos(), ChunkDataHandler.PosType.PLACED );
     }
 
     @SubscribeEvent
@@ -89,7 +99,7 @@ public class EventHandler
         return tags.contains( dirtTag ) || tags.contains( sandTag ) || tags.contains( bambooGrowableTag );
     }
 
-    public static void detectStumps(World world, BlockPos pos )
+    public static void detectStumps( World world, BlockPos pos )
     {
         BlockState state = world.getBlockState( pos );
         Block block = state.getBlock();
@@ -122,7 +132,7 @@ public class EventHandler
         ResourceLocation resLoc = Util.getDimensionResLoc( world );
         for( BlockPos stumpPos : stumpBlocks )
         {
-            ChunkDataHandler.addPos( resLoc, stumpPos );
+            ChunkDataHandler.addPos( resLoc, stumpPos, ChunkDataHandler.PosType.TREE );
         }
     }
 
