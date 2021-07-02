@@ -4,11 +4,16 @@ import harmonised.stumps.util.Reference;
 import harmonised.stumps.util.Util;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.RotatedPillarBlock;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.item.PickaxeItem;
+import net.minecraft.state.Property;
+import net.minecraft.util.Direction;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.FakePlayer;
@@ -28,6 +33,9 @@ public class EventHandler
     public static final ResourceLocation leavesTag = new ResourceLocation( "minecraft:leaves" );
     public static final ResourceLocation dirtTag = new ResourceLocation( "forge:dirt" );
     public static final ResourceLocation sandTag = new ResourceLocation( "forge:sand" );
+    public static final ResourceLocation nyliumTag = new ResourceLocation( "minecraft:nylium" );
+    public static final ResourceLocation netherrackMinecraftTag = new ResourceLocation( "minecraft:netherrack" );
+    public static final ResourceLocation netherrackForgeTag = new ResourceLocation( "forge:netherrack" );
     public static final ResourceLocation bambooGrowableTag = new ResourceLocation( "minecraft:bamboo_plantable_on" );
 
     @SubscribeEvent
@@ -79,7 +87,8 @@ public class EventHandler
     @SubscribeEvent
     public static void blockPlacedEvent( BlockEvent.EntityPlaceEvent event )
     {
-        ChunkDataHandler.addPos( Util.getDimensionResLoc( (World) event.getWorld() ), event.getPos(), ChunkDataHandler.PosType.PLACED );
+        if( event.getBlockSnapshot().getReplacedBlock().isAir() && !( event.getEntity() instanceof PlayerEntity ) && ((PlayerEntity) event.getEntity()).isCreative() )
+            ChunkDataHandler.addPos( Util.getDimensionResLoc( (World) event.getWorld() ), event.getPos(), ChunkDataHandler.PosType.PLACED );
     }
 
     @SubscribeEvent
@@ -96,7 +105,7 @@ public class EventHandler
     public static boolean isSoilBlock( Block block )
     {
         Set<ResourceLocation> tags = block.getTags();
-        return tags.contains( dirtTag ) || tags.contains( sandTag ) || tags.contains( bambooGrowableTag );
+        return tags.contains( dirtTag ) || tags.contains( sandTag ) || tags.contains( nyliumTag ) || tags.contains( netherrackMinecraftTag ) || tags.contains( netherrackForgeTag ) || tags.contains( bambooGrowableTag );
     }
 
     public static void detectStumps( World world, BlockPos pos )
@@ -138,7 +147,10 @@ public class EventHandler
 
     public static boolean isLog( World world, BlockPos pos )
     {
-        Block block = world.getBlockState( pos ).getBlock();
+        BlockState state = world.getBlockState( pos );
+        if( state.hasProperty( RotatedPillarBlock.AXIS ) && !state.getValue( RotatedPillarBlock.AXIS ).equals( Direction.Axis.Y ) )
+                return false;
+        Block block = state.getBlock();
         Set<ResourceLocation> tags = block.getTags();
         return tags.contains( logsTag );
     }
